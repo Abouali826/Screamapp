@@ -3,13 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Scream App</title>
-    <script src="https://unpkg.com/@tonconnect/ui@latest/dist/tonconnect-ui.min.js"></script>
+    <title>Scream App - MultiChain</title>
+    <script src="https://unpkg.com/@tonconnect/ui@2.0.9/dist/tonconnect-ui.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
     <style>
         body {
             background-color: #0b0b0b;
             color: #e0e0e0;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-family: sans-serif;
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -19,123 +20,121 @@
             padding: 20px;
             text-align: center;
         }
-        .language-picker { position: absolute; top: 20px; right: 20px; }
-        select { background: #222; color: white; border: 1px solid #444; padding: 8px; border-radius: 8px; cursor: pointer; }
+        h1 { color: #ff4d4d; font-size: 2rem; margin-bottom: 5px; }
+        p { color: #aaa; font-size: 0.9rem; margin-bottom: 20px; }
         
-        h1 { color: #ff4d4d; font-size: 2.5rem; text-shadow: 0 0 10px rgba(255, 77, 77, 0.5); margin-bottom: 5px; }
-        p { color: #aaa; margin-bottom: 25px; max-width: 300px; }
-        
-        #ton-connect-button { margin-bottom: 25px; }
-
-        textarea {
-            width: 90%;
-            max-width: 450px;
-            height: 150px;
+        .payment-box {
             background: #1a1a1a;
-            border: 2px solid #333;
-            color: white;
-            padding: 15px;
+            border: 1px solid #333;
+            padding: 20px;
             border-radius: 15px;
-            font-size: 16px;
-            resize: none;
-            outline: none;
-            margin-bottom: 20px;
-            text-align: right;
+            width: 100%;
+            max-width: 400px;
         }
 
-        button#payBtn {
-            padding: 15px 40px;
-            background: linear-gradient(135deg, #0088cc, #005588);
-            color: white;
+        #ton-connect-button { margin: 15px auto; }
+
+        .bnb-section {
+            border-top: 1px solid #333;
+            margin-top: 15px;
+            padding-top: 15px;
+        }
+
+        button {
+            width: 100%;
+            padding: 12px;
+            border-radius: 10px;
             border: none;
-            border-radius: 30px;
             font-weight: bold;
             cursor: pointer;
-            font-size: 1.1rem;
-            box-shadow: 0 4px 15px rgba(0, 136, 204, 0.3);
-            display: none; /* يظهر فقط بعد الربط */
+            margin-top: 10px;
         }
-        .price { margin-top: 10px; color: #00d1ff; font-weight: bold; }
+
+        .bnb-btn { background: #F3BA2F; color: #000; } /* لون BNB الرسمي */
+        .pay-btn { background: #0088cc; color: white; display: none; }
+        
+        textarea {
+            width: 100%;
+            height: 100px;
+            background: #0b0b0b;
+            border: 1px solid #444;
+            color: white;
+            padding: 10px;
+            border-radius: 8px;
+            margin: 15px 0;
+            box-sizing: border-box;
+        }
     </style>
 </head>
 <body>
 
-    <div class="language-picker">
-        <select id="langSelect" onchange="changeLanguage()">
-            <option value="ar">العربية</option>
-            <option value="en">English</option>
-            <option value="ru">Русский</option>
-        </select>
+    <h1>🗣️ Scream</h1>
+    <p>فرغ طاقتك السلبية عبر TON أو BNB</p>
+
+    <div class="payment-box">
+        <textarea id="ventInput" placeholder="اكتب ما بداخلك هنا..."></textarea>
+
+        <div id="ton-connect-button"></div>
+        <button id="payTonBtn" class="pay-btn" onclick="sendTon()">إرسال عبر TON (0.2 TON)</button>
+
+        <div class="bnb-section">
+            <button id="bnbConnectBtn" class="bnb-btn" onclick="connectBNB()">ربط محفظة BNB (MetaMask)</button>
+            <button id="payBnbBtn" class="bnb-btn" style="display:none;" onclick="sendBNB()">إرسال عبر BNB (0.005 BNB)</button>
+        </div>
     </div>
 
-    <h1 id="mainTitle">🗣️ Scream</h1>
-    <p id="subTitle">فرغ طاقتك السلبية.. سرية تامة وهويّة مجهولة.</p>
-
-    <div id="ton-connect-button"></div>
-
-    <textarea id="ventInput" placeholder="اكتب ما بداخلك هنا..."></textarea>
-
-    <button id="payBtn" onclick="sendTransaction()">أرسل الصرخة (0.2 TON)</button>
-    <div class="price" id="priceLabel">التكلفة: 0.2 TON</div>
-
     <script>
-        // إعداد TON Connect
+        // --- إعدادات TON ---
         const tonConnectUI = new TONConnectUI.TonConnectUI({
-            manifestUrl: 'https://raw.githubusercontent.com/ton-connect/demo-dapp/main/public/tonconnect-manifest.json',
+            manifestUrl: 'https://ton-connect.github.io/demo-dapp-with-react/tonconnect-manifest.json',
             buttonRootId: 'ton-connect-button'
         });
 
-        // مراقبة حالة المحفظة
         tonConnectUI.onStatusChange(wallet => {
-            const payBtn = document.getElementById('payBtn');
-            if (wallet) {
-                payBtn.style.display = 'block';
-            } else {
-                payBtn.style.display = 'none';
-            }
+            document.getElementById('payTonBtn').style.display = wallet ? 'block' : 'none';
         });
 
-        function changeLanguage() {
-            const lang = document.getElementById('langSelect').value;
-            const ventInput = document.getElementById('ventInput');
-            const translations = {
-                ar: { title: "🗣️ Scream", sub: "فرغ طاقتك السلبية.. سرية تامة وهويّة مجهولة.", placeholder: "اكتب ما بداخلك هنا...", btn: "أرسل الصرخة (0.2 TON)", price: "التكلفة: 0.2 TON", dir: "rtl" },
-                en: { title: "🗣️ Scream", sub: "Vent your negative energy.. total anonymity.", placeholder: "Write your anger here...", btn: "Send Scream (0.2 TON)", price: "Cost: 0.2 TON", dir: "ltr" },
-                ru: { title: "🗣️ Scream", sub: "Выплесните негатив.. полная анонимность.", placeholder: "Напишите здесь...", btn: "Отправить (0.2 TON)", price: "Цена: 0.2 TON", dir: "ltr" }
-            };
-            
-            const t = translations[lang];
-            document.getElementById('mainTitle').innerText = t.title;
-            document.getElementById('subTitle').innerText = t.sub;
-            ventInput.placeholder = t.placeholder;
-            document.getElementById('payBtn').innerText = t.btn;
-            document.getElementById('priceLabel').innerText = t.price;
-            document.body.dir = t.dir;
-            ventInput.style.textAlign = (t.dir === 'rtl' ? 'right' : 'left');
+        async function sendTon() {
+            const msg = document.getElementById('ventInput').value;
+            if(!msg) return alert("اكتب شيئاً!");
+            try {
+                await tonConnectUI.sendTransaction({
+                    validUntil: Math.floor(Date.now() / 1000) + 600,
+                    messages: [{ address: "UQANtRoXP8-c5QC4Mhib-BGqJs4TJdt7Q3CFD2e-s4fKfABc", amount: "200000000" }]
+                });
+                alert("تم الإرسال بنجاح!");
+            } catch(e) { alert("فشلت العملية"); }
         }
 
-        async function sendTransaction() {
-            const message = document.getElementById('ventInput').value;
-            if (!message) {
-                alert(document.dir === 'rtl' ? "اكتب شيئاً أولاً!" : "Please write something first!");
-                return;
-            }
+        // --- إعدادات BNB ---
+        let bnbAccount;
+        async function connectBNB() {
+            if (window.ethereum) {
+                try {
+                    const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+                    bnbAccount = accounts[0];
+                    document.getElementById('bnbConnectBtn').style.display = 'none';
+                    document.getElementById('payBnbBtn').style.display = 'block';
+                    alert("متصل بـ BNB: " + bnbAccount.substring(0,6) + "...");
+                } catch (err) { alert("فشل الاتصال"); }
+            } else { alert("يرجى فتح الموقع من متصفح يدعم MetaMask أو Trust Wallet"); }
+        }
 
-            const transaction = {
-                validUntil: Math.floor(Date.now() / 1000) + 360,
-                messages: [{
-                    address: "UQANtRoXP8-c5QC4Mhib-BGqJs4TJdt7Q3CFD2e-s4fKfABc",
-                    amount: "200000000",
-                }]
-            };
-
+        async function sendBNB() {
+            const msg = document.getElementById('ventInput').value;
+            if(!msg) return alert("اكتب شيئاً!");
+            
+            const provider = new ethers.providers.Web3Provider(window.ethereum);
+            const signer = provider.getSigner();
+            
             try {
-                await tonConnectUI.sendTransaction(transaction);
-                alert(document.dir === 'rtl' ? "تم إرسال صرختك بنجاح!" : "Scream sent successfully!");
-                document.getElementById('ventInput').value = "";
-            } catch (e) {
-                alert(document.dir === 'rtl' ? "فشلت العملية أو تم إلغاؤها." : "Transaction failed or cancelled.");
-            }
+                const tx = await signer.sendTransaction({
+                    to: "0x895697621183311E6A1B6a4220b33036F9dE3a00", // ضع عنوان محفظة BNB الخاصة بك هنا
+                    value: ethers.utils.parseEther("0.005") // القيمة بالـ BNB (حوالي 3 دولار)
+                });
+                await tx.wait();
+                alert("تم إرسال الصرخة عبر BNB!");
+            } catch (e) { alert("فشلت عملية الدفع"); }
         }
     </script>
 </body>
