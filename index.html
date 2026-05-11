@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Scream - فرغ طاقتك</title>
+    <script src="https://unpkg.com/@tonconnect/ui@latest/dist/tonconnect-ui.min.js"></script>
     <style>
         body {
             background-color: #0b0b0b;
@@ -17,20 +18,8 @@
             margin: 0;
             padding: 20px;
         }
-        /* قائمة اللغات */
-        .language-picker {
-            position: absolute;
-            top: 20px;
-            left: 20px;
-        }
-        select {
-            background: #222;
-            color: white;
-            border: 1px solid #444;
-            padding: 5px 10px;
-            border-radius: 5px;
-            cursor: pointer;
-        }
+        .language-picker { position: absolute; top: 20px; left: 20px; }
+        select { background: #222; color: white; border: 1px solid #444; padding: 5px 10px; border-radius: 5px; cursor: pointer; }
         h1 { color: #ff4d4d; margin-bottom: 10px; font-size: 2.5rem; }
         p { font-size: 1rem; color: #aaa; margin-bottom: 20px; text-align: center; }
         
@@ -46,12 +35,13 @@
             font-size: 16px;
             resize: none;
             outline: none;
-            transition: border-color 0.3s;
         }
-        textarea:focus { border-color: #0088cc; }
         
-        button {
-            margin-top: 25px;
+        /* حاوية زر المحفظة */
+        #ton-connect-button { margin-bottom: 20px; }
+
+        button#sendBtn {
+            margin-top: 10px;
             padding: 15px 40px;
             background-color: #0088cc;
             color: white;
@@ -62,7 +52,6 @@
             font-size: 1.1rem;
             box-shadow: 0 4px 15px rgba(0, 136, 204, 0.3);
         }
-        button:hover { background-color: #0077b5; transform: translateY(-2px); }
         .price-tag { margin-top: 15px; font-weight: bold; color: #00d1ff; }
     </style>
 </head>
@@ -72,52 +61,73 @@
         <select id="langSelect" onchange="changeLanguage()">
             <option value="ar">العربية</option>
             <option value="en">English</option>
-            <option value="fr">Français</option>
-            <option value="zh">中文 (Chinese)</option>
-            <option value="ja">日本語 (Japanese)</option>
-            <option value="ru">Русский (Russian)</option>
+            <option value="ru">Русский</option>
         </select>
     </div>
 
     <h1 id="mainTitle">Scream 🗣️</h1>
     <p id="subTitle">فرغ كل ما في قلبك.. سرية تامة وهوية مجهولة.</p>
 
+    <div id="ton-connect-button"></div>
+
     <textarea id="ventInput" placeholder="اكتب غضبك هنا..."></textarea>
 
-    <button id="btnText" onclick="payAndSend()">اربط المحفظة وفرغ طاقتك</button>
+    <button id="sendBtn" onclick="sendTransaction()">اربط المحفظة وفرغ طاقتك</button>
 
     <div class="price-tag">Cost: 0.2 TON</div>
 
     <script>
-        const translations = {
-            ar: { title: "Scream 🗣️", sub: "فرغ كل ما في قلبك.. سرية تامة وهوية مجهولة.", placeholder: "اكتب غضبك هنا...", btn: "اربط المحفظة وفرغ طاقتك" },
-            en: { title: "Scream 🗣️", sub: "Vent everything in your heart.. total anonymity.", placeholder: "Write your anger here...", btn: "Connect Wallet & Vent" },
-            fr: { title: "Scream 🗣️", sub: "Libérez votre cœur.. anonymat total.", placeholder: "Écrivez votre colère ici...", btn: "Connecter le Wallet" },
-            zh: { title: "Scream 🗣️", sub: "释放你心中的一切.. 完全匿名。", placeholder: "在这里写下你的愤怒...", btn: "连接钱包并释放" },
-            ja: { title: "Scream 🗣️", sub: "心のすべてを吐き出せ.. 完全な匿名性。", placeholder: "ここに怒りを書いてください...", btn: "ウォレットを接続して発散" },
-            ru: { title: "Scream 🗣️", sub: "Выплесните все, что на сердце.. полная анонимность.", placeholder: "Напишите здесь свой гнев...", btn: "Подключить кошелек" }
-        };
+        // إعداد TON Connect
+        const tonConnectUI = new TONConnectUI.TonConnectUI({
+            manifestUrl: 'https://raw.githubusercontent.com/ton-connect/demo-dapp/main/public/tonconnect-manifest.json',
+            buttonRootId: 'ton-connect-button'
+        });
+
+        async function sendTransaction() {
+            const text = document.getElementById('ventInput').value;
+            if (!text) {
+                alert("Please write something! / يرجى الكتابة أولاً!");
+                return;
+            }
+
+            if (!tonConnectUI.connected) {
+                alert("Please connect your wallet first! / يرجى ربط المحفظة أولاً عبر الزر بالأعلى");
+                return;
+            }
+
+            // إعداد تفاصيل التحويل (0.2 TON)
+            const transaction = {
+                validUntil: Math.floor(Date.now() / 1000) + 60, // دقيقة واحدة للصلاحية
+                messages: [
+                    {
+                        address: "UQANtRoXP8-c5QC4Mhib-BGqJs4TJdt7Q3CFD2e-s4fKfABc", // عنوان محفظتك
+                        amount: "200000000", // 0.2 TON بالنانوتون
+                    }
+                ]
+            };
+
+            try {
+                const result = await tonConnectUI.sendTransaction(transaction);
+                alert("تم الدفع بنجاح! شكراً لتفريغ طاقتك.");
+                document.getElementById('ventInput').value = ""; // مسح النص بعد النجاح
+            } catch (e) {
+                console.error(e);
+                alert("فشلت عملية الدفع أو تم إلغاؤها.");
+            }
+        }
 
         function changeLanguage() {
             const lang = document.getElementById('langSelect').value;
-            document.getElementById('mainTitle').innerText = translations[lang].title;
-            document.getElementById('subTitle').innerText = translations[lang].sub;
-            document.getElementById('ventInput').placeholder = translations[lang].placeholder;
-            document.getElementById('btnText').innerText = translations[lang].btn;
-            
-            // تغيير اتجاه النص للعربية فقط
-            document.body.dir = (lang === 'ar') ? 'rtl' : 'ltr';
-        }
-
-        function payAndSend() {
-            const text = document.getElementById('ventInput').value;
-            if(!text) {
-                alert("Please write something first! / يرجى كتابة شيء أولاً!");
-                return;
-            }
-            alert("Proceeding to TON Wallet to pay 0.2 TON...");
+            const trans = {
+                ar: { title: "Scream 🗣️", sub: "فرغ كل ما في قلبك.. سرية تامة.", placeholder: "اكتب غضبك هنا...", btn: "اربط المحفظة وفرغ طاقتك" },
+                en: { title: "Scream 🗣️", sub: "Vent your heart.. total anonymity.", placeholder: "Write your anger here...", btn: "Connect & Vent" },
+                ru: { title: "Scream 🗣️", sub: "Выплесните все.. анонимно.", placeholder: "Напишите здесь...", btn: "Подключить и отправить" }
+            };
+            document.getElementById('mainTitle').innerText = trans[lang].title;
+            document.getElementById('subTitle').innerText = trans[lang].sub;
+            document.getElementById('ventInput').placeholder = trans[lang].placeholder;
+            document.getElementById('sendBtn').innerText = trans[lang].btn;
         }
     </script>
-
 </body>
 </html>
